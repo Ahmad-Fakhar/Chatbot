@@ -1,89 +1,48 @@
 package com.example.chatbot;
 
-import androidx.appcompat.app.AppCompatActivity;
-import androidx.recyclerview.widget.LinearLayoutManager;
+import java.io.BufferedReader;
+import java.io.DataOutputStream;
+import java.io.InputStreamReader;
+import java.net.HttpURLConnection;
+import java.net.URL;
 
-import android.os.Bundle;
-import android.view.View;
-import android.widget.Toast;
+class ChatGPTAPI {
 
-import com.example.chatbot.databinding.ActivityMainBinding;
+    private static final String API_KEY = "AIzaSyCP_Xw6y_WbVju4Nj37COKoRKD10Vzvw1E";
+    private static final String API_URL = "https://api.openai.com/v1/completions/";
 
-import java.util.ArrayList;
+    public static String generateResponse(String prompt) {
+        try {
+            URL url = new URL(API_URL);
+            HttpURLConnection con = (HttpURLConnection) url.openConnection();
+            con.setRequestMethod("POST");
+            con.setRequestProperty("Content-Type", "application/json");
+            con.setRequestProperty("Authorization", "Bearer " + API_KEY);
+            con.setDoOutput(true);
 
-import retrofit2.Call;
-import retrofit2.Callback;
-import retrofit2.Response;
-import retrofit2.Retrofit;
-import retrofit2.converter.gson.GsonConverterFactory;
+            String requestBody = "{\"prompt\": \"" + prompt + "\", \"max_tokens\": 150}";
+            DataOutputStream wr = new DataOutputStream(con.getOutputStream());
+            wr.writeBytes(requestBody);
+            wr.flush();
+            wr.close();
 
-public class MainActivity extends AppCompatActivity {
-
-    ActivityMainBinding binding;
-    private final String BOT_KEY = "bot", USER_KEY = "user";
-    ArrayList<ChatsModel> chatsModelArrayList;
-    private ChatRvAdapter chatRvAdapter;
-
-    @Override
-    protected void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-        binding = ActivityMainBinding.inflate(getLayoutInflater());
-        setContentView(binding.getRoot());
-
-        binding.idEdtMessage.requestFocus();
-        chatsModelArrayList = new ArrayList<>();
-        chatRvAdapter = new ChatRvAdapter(chatsModelArrayList,this);
-
-        //vertical orientation
-        LinearLayoutManager manager = new LinearLayoutManager(this);
-        binding.idRVChats.setLayoutManager(manager);
-
-        binding.idRVChats.setAdapter(chatRvAdapter);
-
-        binding.idFABSend.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                if(binding.idEdtMessage.getText().toString().isEmpty()){
-                    Toast.makeText(MainActivity.this, "Please enter some message", Toast.LENGTH_SHORT).show();
-                }else{
-                    getResponse(binding.idEdtMessage.getText().toString());
-                    binding.idEdtMessage.setText("");
-                }
+            BufferedReader in = new BufferedReader(new InputStreamReader(con.getInputStream()));
+            StringBuilder response = new StringBuilder();
+            String inputLine;
+            while ((inputLine = in.readLine()) != null) {
+                response.append(inputLine);
             }
-
-
-        });
-
-
-
+            in.close();
+            return response.toString();
+        } catch (Exception e) {
+            e.printStackTrace();
+            return null;
+        }
     }
 
-    private void getResponse(String message) {
-        chatsModelArrayList.add(new ChatsModel(message,USER_KEY));
-        chatRvAdapter.notifyDataSetChanged();
-
-        String url = "http://api.brainshop.ai/get?bid=172753&key=KeSoP2pQcZjdBgZb&uid=[uid]&msg="+message;
-        String BASE_URL = "http://api.brainshop.ai/";
-        Retrofit retrofit =new Retrofit.Builder().baseUrl(BASE_URL).addConverterFactory(GsonConverterFactory.create()).build();
-        RetrofitAPI retrofitAPI = retrofit.create(RetrofitAPI.class);
-        Call<MsgModel> call = retrofitAPI.getMessage(url);
-        call.enqueue(new Callback<MsgModel>() {
-            @Override
-            public void onResponse(Call<MsgModel> call, Response<MsgModel> response) {
-                if(response.isSuccessful()){
-                    MsgModel model = response.body();
-                    chatsModelArrayList.add(new ChatsModel(model.getCnt(),BOT_KEY));
-                    chatRvAdapter.notifyDataSetChanged();
-                }
-            }
-
-            @Override
-            public void onFailure(Call<MsgModel> call, Throwable t) {
-                chatsModelArrayList.add(new ChatsModel("Please revert your questions",BOT_KEY));
-                chatRvAdapter.notifyDataSetChanged();
-
-            }
-        });
+    public static void main(String[] args) {
+        String prompt = "Once upon a time,";
+        String response = generateResponse(prompt);
+        System.out.println(response);
     }
-
 }
